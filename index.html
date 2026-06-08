@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KarnoProb – Mapa de Karnaugh Probabilístico (v2.4)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a1a;
+            --panel-bg: rgba(18, 18, 40, 0.85);
+            --border: rgba(100, 100, 255, 0.3);
+            --text: #e0e0ff;
+            --accent: #00f0ff;
+            --accent2: #c084fc;
+            --danger: #ff4081;
+            --success: #00e676;
+            --shadow: 0 8px 32px rgba(0,0,0,0.4);
+            --radius: 20px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+            background: var(--bg);
+            background-image: radial-gradient(circle at 20% 20%, rgba(0,240,255,0.05) 0%, transparent 50%),
+                              radial-gradient(circle at 80% 80%, rgba(192,132,252,0.05) 0%, transparent 50%);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            gap: 28px;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 24px;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 430px; flex-shrink: 0;
+            background: var(--panel-bg);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px 18px;
+            box-shadow: var(--shadow);
+            overflow-y: auto;
+            max-height: calc(100vh - 48px);
+            position: sticky; top: 24px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex; flex-direction: column; gap: 24px;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            transition: box-shadow 0.3s;
+        }
+        .card:hover { box-shadow: var(--shadow), 0 0 30px rgba(0,240,255,0.1); }
+
+        .card h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem; margin-bottom: 14px;
+            color: var(--accent); letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(0,240,255,0.4);
+        }
+        .card h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.95rem; font-weight: 600; margin-bottom: 10px;
+            color: var(--accent2); text-shadow: 0 0 6px rgba(192,132,252,0.3);
+        }
+
+        .title-area {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px 28px;
+            box-shadow: var(--shadow);
+            display: flex; align-items: center; gap: 16px;
+        }
+        .title-area h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem; font-weight: 900;
+            background: linear-gradient(135deg, #00f0ff, #c084fc);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 2px;
+        }
+        .subtitle { color: #a0a0cc; font-size: 0.95rem; }
+
+        select, button, .btn, input[type="text"], textarea {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.9rem; font-weight: 500;
+            padding: 8px 14px; border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(20,20,50,0.8);
+            color: var(--text); cursor: pointer;
+            transition: all 0.2s; outline: none;
+        }
+        select:hover, button:hover, .btn:hover, input[type="text"]:hover, textarea:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(0,240,255,0.2);
+        }
+        button, .btn-primary {
+            background: linear-gradient(135deg, #00f0ff, #c084fc);
+            color: #0a0a1a; border: none; font-weight: 700;
+            text-shadow: 0 0 8px rgba(0,0,0,0.3);
+            box-shadow: 0 0 25px rgba(0,240,255,0.3);
+        }
+        button:hover, .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 35px rgba(192,132,252,0.5);
+        }
+        .btn-sm { padding: 6px 10px; font-size: 0.78rem; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+        textarea { width: 100%; resize: vertical; min-height: 60px; font-family: monospace; }
+
+        .tab-header {
+            display: flex; gap: 4px; border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 12px;
+        }
+        .tab-btn {
+            padding: 6px 12px; border-radius: 8px 8px 0 0;
+            background: rgba(25,25,50,0.4); border: 1px solid transparent;
+            cursor: pointer; font-size: 0.8rem; font-weight: 600;
+            color: #9090c0;
+        }
+        .tab-btn.active {
+            background: rgba(25,25,50,0.8); color: var(--accent);
+            border-color: var(--border); border-bottom-color: transparent;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .controls-grid { display: grid; gap: 6px; }
+        .controls-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .controls-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+        .controls-grid.cols-8 { grid-template-columns: repeat(8, 1fr); }
+
+        .cell-control {
+            background: rgba(25,25,50,0.6); backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+            padding: 6px 5px; text-align: center; transition: all 0.3s;
+            font-size: 0.7rem;
+        }
+        .cell-control:hover {
+            border-color: var(--accent2);
+            box-shadow: 0 0 20px rgba(192,132,252,0.2);
+            transform: translateY(-1px);
+        }
+        .minterm-label { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.65rem; color: var(--accent); margin-bottom: 3px; }
+        .radio-group { display: flex; justify-content: center; gap: 5px; margin-bottom: 3px; font-size: 0.65rem; }
+        .prob-slider { width: 100%; margin-top: 2px; accent-color: #00e676; height: 3px; }
+        .prob-value { font-family: 'Orbitron', sans-serif; font-size: 0.6rem; color: #00e676; margin-top: 1px; }
+
+        .truth-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .truth-table th, .truth-table td { border: 1px solid rgba(255,255,255,0.15); padding: 4px 6px; text-align: center; }
+        .truth-table th { background: rgba(0,240,255,0.1); color: var(--accent); }
+
+        .kmap-wrapper { display: flex; flex-direction: column; align-items: center; overflow-x: auto; }
+        .kmap-legend { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.8rem; color: #c0c0ff; }
+        .legend-gradient { width: 140px; height: 12px; border-radius: 6px; background: linear-gradient(to right, red, yellow, lime); }
+
+        canvas#kmapCanvas {
+            display: block; width: 100%; max-width: 800px; height: auto;
+            filter: drop-shadow(0 0 15px rgba(0,240,255,0.2));
+        }
+
+        canvas#circuitCanvas {
+            display: block; width: 100%; max-width: 100%; height: auto;
+            background: rgba(0,0,0,0.2); border-radius: 12px;
+        }
+
+        .expr-box {
+            background: rgba(0,20,10,0.7); border: 1px solid #00e676; border-radius: 10px;
+            padding: 10px 16px; font-family: 'Rajdhani', monospace; font-size: 0.9rem;
+            font-weight: 700; color: #00e676; text-align: center; word-break: break-word;
+            box-shadow: 0 0 15px rgba(0,230,118,0.15);
+            margin-bottom: 8px;
+        }
+        .expr-label { font-size: 0.75rem; color: #9090c0; margin-bottom: 2px; }
+
+        .metrics-row { display: flex; gap: 16px; }
+        .metric {
+            flex: 1; background: rgba(20,20,50,0.6); backdrop-filter: blur(12px);
+            border: 1px solid rgba(0,240,255,0.2); border-radius: 14px;
+            padding: 14px 10px; text-align: center; transition: all 0.3s;
+        }
+        .metric:hover { border-color: var(--accent); box-shadow: 0 0 25px rgba(0,240,255,0.2); }
+        .metric .value { font-family: 'Orbitron', sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--accent); text-shadow: 0 0 15px rgba(0,240,255,0.6); }
+        .metric.warning .value { color: #ff4081; text-shadow: 0 0 15px rgba(255,64,129,0.6); }
+        .metric.warning { border-color: rgba(255,64,129,0.4); }
+        .metric .label { font-size: 0.75rem; color: #9090c0; margin-top: 3px; }
+
+        .toggle-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .toggle-row label { font-weight: 600; font-size: 0.85rem; }
+
+        .sim-charts { display: flex; gap: 16px; flex-wrap: wrap; }
+        .sim-chart-container { flex: 1; min-width: 260px; max-width: 420px; position: relative; height: 280px; }
+        .sim-chart-container canvas { width: 100% !important; height: 100% !important; }
+
+        #simResult { margin-top: 12px; font-weight: 600; color: #c0c0ff; }
+
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--panel-bg); backdrop-filter: blur(30px);
+            border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 28px; max-width: 500px; max-height: 80vh; overflow-y: auto;
+            box-shadow: 0 0 50px rgba(0,240,255,0.3);
+        }
+        .modal h2 { color: var(--accent); margin-bottom: 14px; }
+        .modal p { margin-bottom: 10px; line-height: 1.6; font-size: 0.9rem; }
+
+        @media (max-width: 960px) {
+            .app-container { flex-direction: column; padding: 12px; }
+            .sidebar { width: 100%; max-height: none; position: static; }
+            .sim-charts { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <aside class="sidebar">
+        <div>
+            <label for="varsSelect" style="font-weight:700;display:block;margin-bottom:8px;color:var(--accent);">⚡ NÚMERO DE VARIÁVEIS</label>
+            <select id="varsSelect" style="width:100%;">
+                <option value="2">2 variáveis</option>
+                <option value="3">3 variáveis</option>
+                <option value="4" selected>4 variáveis</option>
+                <option value="6">6 variáveis</option>
+            </select>
+        </div>
+        <div>
+            <h3 style="color:var(--accent2); margin-bottom:10px;">📡 ENTRADA DE DADOS</h3>
+            <div class="tab-header">
+                <div class="tab-btn active" data-tab="tab-cells">Mapa</div>
+                <div class="tab-btn" data-tab="tab-table">Tabela</div>
+                <div class="tab-btn" data-tab="tab-expr">Expressão</div>
+                <div class="tab-btn" data-tab="tab-list">Lista</div>
+                <div class="tab-btn" data-tab="tab-file">Arquivo</div>
+            </div>
+            <div id="tab-cells" class="tab-content active">
+                <div class="btn-group" style="margin:8px 0;">
+                    <button id="loadExampleBtn" class="btn-sm">📥 Exemplo</button>
+                    <button id="clearBtn" class="btn-sm">🧹 Limpar</button>
+                    <button id="randomBtn" class="btn-sm">🎲 Aleatório</button>
+                </div>
+                <div id="controlsGrid" class="controls-grid cols-4"></div>
+            </div>
+            <div id="tab-table" class="tab-content">
+                <div style="overflow-x:auto;">
+                    <table class="truth-table" id="truthTable"><thead><tr id="truthHeaderRow"></tr></thead><tbody id="truthBody"></tbody></table>
+                </div>
+                <button id="applyTableBtn" class="btn-sm" style="margin-top:8px;">✔ Aplicar Tabela</button>
+            </div>
+            <div id="tab-expr" class="tab-content">
+                <textarea id="exprInput" placeholder="Ex: A & ~B | C"></textarea>
+                <button id="applyExprBtn" class="btn-sm" style="margin-top:8px;">✔ Aplicar Expressão</button>
+                <div id="exprError" style="color:#ff4081;font-size:0.75rem;margin-top:4px;"></div>
+            </div>
+            <div id="tab-list" class="tab-content">
+                <label style="font-size:0.8rem;">Mintermos (F=1):</label><input type="text" id="mintermsInput" placeholder="Ex: 0,2,5,7">
+                <label style="font-size:0.8rem;">Maxtermos (F=0):</label><input type="text" id="maxtermsInput" placeholder="Ex: 1,3,4,6">
+                <label style="font-size:0.8rem;">Don't-care:</label><input type="text" id="dontcareInput" placeholder="Ex: 8,10">
+                <label style="font-size:0.8rem;">Probabilidade padrão (%):</label>
+                <input type="range" id="defaultProbSlider" min="0" max="100" value="90" style="width:100%;">
+                <span id="defaultProbValue" style="font-size:0.7rem;color:#00e676;">90%</span>
+                <button id="applyListBtn" class="btn-sm" style="margin-top:8px;">✔ Aplicar Lista</button>
+            </div>
+            <div id="tab-file" class="tab-content">
+                <button id="uploadJsonBtn" class="btn-sm">📄 Carregar JSON</button>
+                <button id="uploadCsvBtn" class="btn-sm">📊 Carregar CSV</button>
+                <input type="file" id="fileInput" accept=".json,.csv" style="display:none;">
+                <div id="fileStatus" style="font-size:0.75rem;margin-top:4px;"></div>
+            </div>
+        </div>
+        <div>
+            <h3 style="color:var(--accent2);">⚙️ MODALIDADE</h3>
+            <div class="toggle-row">
+                <input type="checkbox" id="probModeToggle" checked>
+                <label for="probModeToggle">Modo Probabilístico</label>
+            </div>
+        </div>
+        <div>
+          <h3 style="color:var(--accent2);">🎨 OPÇÕES AVANÇADAS</h3>
+            <div class="toggle-row"><input type="checkbox" id="daltonicToggle"><label for="daltonicToggle">Modo Daltônico</label></div>
+            <div class="toggle-row"><input type="checkbox" id="grayScaleToggle"><label for="grayScaleToggle">Escala de Cinza</label></div>
+            <div class="toggle-row"><input type="checkbox" id="weightedDistToggle"><label for="weightedDistToggle">Distrib. de entrada ponderada</label></div>
+            <div class="btn-group" style="margin-top:8px;">
+                <button id="exportPngBtn" class="btn-sm">🖼️ PNG Mapa</button>
+                <button id="exportJsonBtn" class="btn-sm">📄 JSON Config</button>
+                <button id="exportPdfBtn" class="btn-sm">📑 Relatório PDF</button>
+                <button id="shareLinkBtn" class="btn-sm">🔗 Link</button>
+                <button id="helpBtn" class="btn-sm">❓ Ajuda</button>
+            </div>
+            <div class="btn-group" style="margin-top:4px;">
+                <button id="exportSopBtn" class="btn-sm">📝 SOP (.txt)</button>
+                <button id="exportPosBtn" class="btn-sm">📝 POS (.txt)</button>
+                <button id="exportProbBtn" class="btn-sm">📊 Probabilidades (.csv)</button>
+            </div>
+            <div class="btn-group" style="margin-top:4px;">
+                <button id="exportCircuitBtn" class="btn-sm">🔌 Circuito (.png)</button>
+                <button id="exportMonteCarloBtn" class="btn-sm">🎲 Monte Carlo</button>
+            </div>
+            <div class="btn-group" style="margin-top:4px;">
+                <button id="exportFullReportBtn" class="btn-sm btn-primary">📑 RELATÓRIO COMPLETO (PDF)</button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="title-area">
+            <h1>🧬 KarnoProb v2.4</h1>
+            <span class="subtitle">Mapa de Karnaugh Profissional • Circuito • Confiabilidade</span>
+        </div>
+        <div class="card"><h2>🗺️ MAPA DE KARNAUGH</h2><div class="kmap-wrapper"><div class="kmap-legend"><span>0</span><div class="legend-gradient" id="legendGradient"></div><span>1</span><span style="margin-left:6px;" id="legendLabel">Probabilidade</span></div><canvas id="kmapCanvas"></canvas></div></div>
+        <div class="card"><h2>🧾 EXPRESSÕES LÓGICAS MÍNIMAS</h2><div style="display:flex;gap:20px;flex-wrap:wrap;"><div style="flex:1;min-width:200px;"><div class="expr-label">SOP (soma de produtos)</div><div class="expr-box" id="expressionBoxSOP">0</div></div><div style="flex:1;min-width:200px;"><div class="expr-label">POS (produto de somas)</div><div class="expr-box" id="expressionBoxPOS">0</div></div></div></div>
+        <div class="card"><h2>🔌 DIAGRAMA DO CIRCUITO LÓGICO (SOP)</h2><canvas id="circuitCanvas" width="800" height="400"></canvas></div>
+        <div class="card"><h2>📊 ANÁLISE DE CONFIABILIDADE</h2><div class="metrics-row"><div class="metric"><div class="value" id="uniformProb">0.0%</div><div class="label">Prob. saída 1 (entrada uniforme)</div></div><div class="metric warning"><div class="value" id="avgError">0.0%</div><div class="label">Erro médio (desvio do projeto)</div></div></div></div>
+        <div class="card"><h2>🎲 SIMULAÇÃO DE MONTE CARLO</h2>
+            <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:16px;">
+                <label style="font-weight:600;color:var(--accent2);">Nº de simulações: <span id="nSimValue">5000</span></label>
+                <input type="range" id="nSimSlider" min="1000" max="20000" value="5000" step="1000" style="flex:1;min-width:150px;">
+                <button id="runSimBtn">▶ EXECUTAR</button>
+            </div>
+            <div class="sim-charts"><div class="sim-chart-container"><canvas id="histChart"></canvas></div><div class="sim-chart-container"><canvas id="pieChart"></canvas></div></div>
+            <div id="simResult"></div>
+        </div>
+    </main>
+</div>
+<div class="modal-overlay" id="helpModal"><div class="modal"><h2>❓ Ajuda – KarnoProb v2.4</h2><p><strong>Relatório completo:</strong> exporta PDF com mapa, circuito, expressões, métricas e gráficos de Monte Carlo (se executados).</p><p>Use os modos determinístico (0/1/X) ou probabilístico (0-100%).</p><button id="closeHelpBtn" style="margin-top:20px;">Fechar</button></div></div>
+<script>
+(function() {
+    // ==================== ESTADO GLOBAL ====================
+    let numVars = 4;
+    const GRAY_ORDER = {
+        2: [0,1,3,2],
+        3: [0,1,3,2,6,7,5,4],
+        4: [0,1,3,2,6,7,5,4,12,13,15,14,10,11,9,8],
+        6: (()=>{ let arr=[]; for(let i=0;i<64;i++) arr.push(i ^ (i>>1)); return arr; })()
+    };
+    let cellValues = {};
+    let cellStates = {};
+    let probMode = true;
+    function initCells() {
+        const total = 1 << numVars;
+        cellValues = {}; cellStates = {};
+        for (let i = 0; i < total; i++) { cellValues[i] = null; cellStates[i] = 'x'; }
+    }
+    initCells();
+
+    const $varsSelect = document.getElementById('varsSelect');
+    const $controlsGrid = document.getElementById('controlsGrid');
+    const $kmapCanvas = document.getElementById('kmapCanvas');
+    const ctx = $kmapCanvas.getContext('2d');
+    const $exprBoxSOP = document.getElementById('expressionBoxSOP');
+    const $exprBoxPOS = document.getElementById('expressionBoxPOS');
+    const $circuitCanvas = document.getElementById('circuitCanvas');
+    const circuitCtx = $circuitCanvas.getContext('2d');
+    const $uniformProb = document.getElementById('uniformProb');
+    const $avgError = document.getElementById('avgError');
+    const $nSimSlider = document.getElementById('nSimSlider');
+    const $nSimValue = document.getElementById('nSimValue');
+    const $probModeToggle = document.getElementById('probModeToggle');
+    let simChartHist, simChartPie;
+
+    function updateAll() {
+        updateUIForMode();
+        renderKMap();
+        updateExpressions();
+        drawCircuit();
+        updateMetrics();
+        updateControlsGrid();
+        updateTruthTable();
+    }
+
+    function updateUIForMode() {
+        probMode = $probModeToggle.checked;
+        document.getElementById('legendLabel').textContent = probMode ? 'Probabilidade' : 'Valor lógico';
+        document.getElementById('legendGradient').style.background = probMode ? 'linear-gradient(to right, red, yellow, lime)' : 'linear-gradient(to right, #ff4081, #888, #00e676)';
+    }
+
+    // ==================== MAPA MELHORADO ====================
+    function renderKMap() {
+        const totalCells = 1 << numVars;
+        const grayOrder = GRAY_ORDER[numVars] || GRAY_ORDER[4];
+        let cols, rows, varNames;
+        if (numVars === 2) { cols = 2; rows = 2; varNames = ['A','B']; }
+        else if (numVars === 3) { cols = 4; rows = 2; varNames = ['A','BC']; }
+        else if (numVars === 4) { cols = 4; rows = 4; varNames = ['AB','CD']; }
+        else if (numVars === 6) { cols = 8; rows = 8; varNames = ['ABC','DEF']; }
+        const cellSize = 68, headerMargin = 40;
+        const canvasWidth = cols * cellSize + headerMargin, canvasHeight = rows * cellSize + headerMargin;
+        $kmapCanvas.width = canvasWidth; $kmapCanvas.height = canvasHeight;
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        ctx.font = 'bold 12px Rajdhani'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const isDaltonic = document.getElementById('daltonicToggle').checked;
+        const isGrayScale = document.getElementById('grayScaleToggle').checked;
+        ctx.fillStyle = '#e0e0ff'; ctx.font = 'bold 14px Orbitron';
+        if (numVars <= 3) {
+            ctx.fillText(varNames[0], headerMargin/2, headerMargin/2);
+            ctx.fillText(varNames[1], headerMargin/2 + cols*cellSize/2, headerMargin/2);
+        } else {
+            ctx.fillText(varNames[0], headerMargin/2, headerMargin/2 + rows*cellSize/2);
+            ctx.fillText(varNames[1], headerMargin/2 + cols*cellSize/2, headerMargin/2);
+        }
+        ctx.font = '10px monospace'; ctx.fillStyle = '#a0a0cc';
+        if (numVars === 2) {
+            for (let r=0; r<rows; r++) ctx.fillText(r.toString(), headerMargin/2 - 15, headerMargin + r*cellSize + cellSize/2);
+            for (let c=0; c<cols; c++) ctx.fillText(c.toString(), headerMargin + c*cellSize + cellSize/2, headerMargin/2 - 10);
+        } else if (numVars === 3) {
+            for (let r=0; r<rows; r++) ctx.fillText(r.toString(), headerMargin/2 - 15, headerMargin + r*cellSize + cellSize/2);
+            ['00','01','11','10'].forEach((v,c)=> ctx.fillText(v, headerMargin + c*cellSize + cellSize/2, headerMargin/2 - 10));
+        } else if (numVars === 4) {
+            ['00','01','11','10'].forEach((v,r)=> ctx.fillText(v, headerMargin/2 - 15, headerMargin + r*cellSize + cellSize/2));
+            ['00','01','11','10'].forEach((v,c)=> ctx.fillText(v, headerMargin + c*cellSize + cellSize/2, headerMargin/2 - 10));
+        } else if (numVars === 6) {
+            ['000','001','011','010','110','111','101','100'].forEach((v,r)=> ctx.fillText(v, headerMargin/2 - 25, headerMargin + r*cellSize + cellSize/2));
+            ['000','001','011','010','110','111','101','100'].forEach((v,c)=> ctx.fillText(v, headerMargin + c*cellSize + cellSize/2, headerMargin/2 - 10));
+        }
+
+        for (let i = 0; i < totalCells; i++) {
+            const grayIndex = grayOrder.indexOf(i);
+            if (grayIndex === -1) continue;
+            const col = grayIndex % cols, row = Math.floor(grayIndex / cols);
+            const x = headerMargin + col * cellSize, y = headerMargin + row * cellSize;
+            let fillStyle, displayText;
+            if (probMode) {
+                const val = cellValues[i];
+                fillStyle = val === null ? '#444466' : (isGrayScale ? `#${Math.round(255*(1-val/100)).toString(16).padStart(2,'0').repeat(3)}` : (val<50 ? `rgb(255,${Math.round(255*val/50)},0)` : `rgb(${Math.round(255*(1-val/50))},255,0)`));
+                displayText = val !== null ? val.toFixed(0)+'%' : 'X';
+            } else {
+                fillStyle = cellStates[i]==='1' ? '#00e676' : (cellStates[i]==='0' ? '#ff4081' : '#444466');
+                displayText = cellStates[i].toUpperCase();
+            }
+            ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x+2, y+2, cellSize-2, cellSize-2);
+            ctx.fillStyle = fillStyle; ctx.fillRect(x, y, cellSize-2, cellSize-2);
+            ctx.strokeStyle = '#ffffff33'; ctx.lineWidth = 1; ctx.strokeRect(x, y, cellSize-2, cellSize-2);
+            ctx.fillStyle = (probMode && cellValues[i]!==null && cellValues[i]<=50) ? '#fff' : '#000';
+            ctx.font = 'bold 14px Rajdhani'; ctx.fillText(displayText, x + (cellSize-2)/2, y + (cellSize-2)/2 - 6);
+            ctx.fillStyle = '#ffffff88'; ctx.font = '9px monospace'; ctx.fillText('m'+i, x + (cellSize-2)/2, y + (cellSize-2)/2 + 14);
+        }
+    }
+    // ==================== EXPRESSÕES (com notação + e ¬) ====================
+    function getMintermsAndDontCares() {
+        const total = 1 << numVars; const ones=[], dontcares=[];
+        for (let i=0;i<total;i++) {
+            if (probMode) { const v=cellValues[i]; if(v===null) dontcares.push(i); else if(v>50) ones.push(i); }
+            else { if(cellStates[i]==='x') dontcares.push(i); else if(cellStates[i]==='1') ones.push(i); }
+        }
+        return {ones,dontcares};
+    }
+    function toBinary(n,b) { return n.toString(2).padStart(b,'0'); }
+    function countOnes(b) { return b.split('').filter(c=>c==='1').length; }
+    function combineImpl(a,b) { let diff=0,comb=''; for(let i=0;i<a.length;i++){ if(a[i]!==b[i]){diff++;comb+='-';} else comb+=a[i]; } return diff===1?comb:null; }
+    function covers(impl,mt) { for(let i=0;i<impl.length;i++) if(impl[i]!=='-'&&impl[i]!==mt[i]) return false; return true; }
+    function primeImplicants(minterms,dontcares,bits) {
+        let groups={}; const allTerms=[...minterms,...dontcares].map(m=>toBinary(m,bits));
+        for(let t of allTerms) { const ones=countOnes(t); if(!groups[ones]) groups[ones]=[]; groups[ones].push({bin:t,used:false}); }
+        let primes=[];
+        while(true) {
+            let newGroups={}, anyCombined=false;
+            const keys=Object.keys(groups).map(Number).sort((a,b)=>a-b);
+            for(let i=0;i<keys.length-1;i++) {
+                const g1=groups[keys[i]], g2=groups[keys[i+1]]; if(!g2) continue;
+                for(let a of g1) for(let b of g2) {
+                    const comb=combineImpl(a.bin,b.bin);
+                    if(comb) { anyCombined=true; a.used=true; b.used=true; const ones=countOnes(comb); if(!newGroups[ones]) newGroups[ones]=[]; if(!newGroups[ones].some(t=>t.bin===comb)) newGroups[ones].push({bin:comb,used:false}); }
+                }
+            }
+            for(let k of keys) for(let t of groups[k]) if(!t.used) primes.push(t.bin);
+            if(!anyCombined) { for(let k of keys) for(let t of groups[k]) if(!primes.includes(t.bin)) primes.push(t.bin); break; }
+            groups=newGroups;
+        }
+        primes=[...new Set(primes)]; let uncovered=[...minterms], essential=[];
+        while(uncovered.length) {
+            let best=null, bestCover=0;
+            for(let p of primes) { let cover=0; for(let m of uncovered) if(covers(p,toBinary(m,bits))) cover++; if(cover>bestCover) { bestCover=cover; best=p; } }
+            if(!best) break; essential.push(best); uncovered=uncovered.filter(m=>!covers(best,toBinary(m,bits))); primes=primes.filter(p=>p!==best);
+        }
+        return essential;
+    }
+    function implicantToExpression(impl,bits,style='SOP') {
+        if(style==='SOP') {
+            if(impl.replace(/-/g,'')==='') return '1';
+            const vars=[];
+            for(let i=0;i<bits;i++){
+                const v=String.fromCharCode(65+i);
+                if(impl[i]==='0') vars.push(`¬${v}`);
+                else if(impl[i]==='1') vars.push(v);
+            }
+            return vars.length ? vars.join('') : '1'; // justaposição (produto)
+        } else {
+            if(impl.replace(/-/g,'')==='') return '0';
+            const terms=[];
+            for(let i=0;i<bits;i++){
+                const v=String.fromCharCode(65+i);
+                if(impl[i]==='1') terms.push(`¬${v}`);
+                else if(impl[i]==='0') terms.push(v);
+            }
+            return terms.length ? `(${terms.join('+')})` : '0';
+        }
+    }
+    function simplify(style='SOP') {
+        const bits=numVars; const {ones,dontcares}=getMintermsAndDontCares();
+        if(style==='SOP') {
+            if(ones.length===0) return '0';
+            if(ones.length===(1<<bits)) return '1';
+            const primes=primeImplicants(ones,dontcares,bits);
+            return primes.map(p=>implicantToExpression(p,bits,'SOP')).join(' + ')||'0';
+        } else {
+            const zeros=[];
+            for(let i=0;i<(1<<bits);i++) {
+                if(probMode){const v=cellValues[i]; if(v!==null&&v<=50) zeros.push(i);}
+                else if(cellStates[i]==='0') zeros.push(i);
+            }
+            if(zeros.length===0) return '1';
+            if(zeros.length===(1<<bits)) return '0';
+            const primes=primeImplicants(zeros,dontcares,bits);
+            return primes.map(p=>implicantToExpression(p,bits,'POS')).join(' · ')||'0';
+        }
+    }
+    function updateExpressions() {
+        $exprBoxSOP.textContent = simplify('SOP');
+        $exprBoxPOS.textContent = simplify('POS');
+    }
+
+    // ==================== CIRCUITO MELHORADO ====================
+    function drawCircuit() {
+        const exprSOP = simplify('SOP');
+        const bits = numVars;
+        const usedVars = [];
+        for (let i = 0; i < bits; i++) usedVars.push(String.fromCharCode(65 + i));
+
+        // Separa os produtos (separados por " + ")
+        const products = exprSOP === '0' ? [] : exprSOP === '1' ? ['1'] : exprSOP.split(' + ').map(p => p.trim()).filter(p => p !== '');
+        const numProducts = products.length;
+
+        // Altura dinâmica do canvas
+        const marginLeft = 100, marginTop = 80, gateWidth = 60, gateHeight = 40, invSize = 12;
+        const andSpacing = 70;
+        const orWidth = 80, orHeight = Math.max(60, numProducts * 30 + 20); // altura da porta OR proporcional
+        const outputX = 700, outputY = 200; // valores de referência, mas depois recalculamos
+
+        // Calcula altura total necessária
+        const totalHeight = marginTop + numProducts * andSpacing + 100;
+        $circuitCanvas.width = 900;
+        $circuitCanvas.height = Math.max(400, totalHeight);
+
+        circuitCtx.clearRect(0, 0, $circuitCanvas.width, $circuitCanvas.height);
+        circuitCtx.fillStyle = '#0a0a1a';
+        circuitCtx.fillRect(0, 0, $circuitCanvas.width, $circuitCanvas.height);
+
+        // Se expressão for constante
+        if (exprSOP === '0' || exprSOP === '1') {
+            circuitCtx.fillStyle = '#00f0ff';
+            circuitCtx.font = 'bold 24px Orbitron';
+            circuitCtx.textAlign = 'center';
+            circuitCtx.fillText(exprSOP, $circuitCanvas.width / 2, $circuitCanvas.height / 2);
+            return;
+        }
+        if (!numProducts) return;
+
+        // Posições dinâmicas
+        const andStartX = marginLeft + 150;
+        const andStartY = marginTop;
+        const andGates = products.map((_, idx) => ({
+            x: andStartX,
+            y: andStartY + idx * andSpacing,
+            product: products[idx]
+        }));
+
+        const orX = andStartX + gateWidth + 80;
+        const orY = (andGates[0].y + andGates[andGates.length - 1].y + gateHeight) / 2 - orHeight / 2;
+        const orCenterX = orX + orWidth / 2, orCenterY = orY + orHeight / 2;
+        const outputLineEndX = $circuitCanvas.width - 60;
+
+        // Desenha fios das variáveis de entrada
+        circuitCtx.fillStyle = '#e0e0ff';
+        circuitCtx.font = 'bold 14px Orbitron';
+        circuitCtx.textAlign = 'right';
+        for (let i = 0; i < bits; i++) {
+            const varY = 40 + i * 35;
+            circuitCtx.fillText(usedVars[i], 50, varY);
+            circuitCtx.beginPath();
+            circuitCtx.moveTo(60, varY);
+            circuitCtx.lineTo(marginLeft, varY);
+            circuitCtx.strokeStyle = '#ffffff66';
+            circuitCtx.lineWidth = 1.5;
+            circuitCtx.stroke();
+        }
+
+        // Desenha portas AND e conexões
+        andGates.forEach((gate, idx) => {
+            const { x, y, product } = gate;
+            // Desenha linha até a porta OR
+            circuitCtx.beginPath();
+            circuitCtx.moveTo(x + gateWidth, y + gateHeight / 2);
+            circuitCtx.lineTo(orX, orCenterY);
+            circuitCtx.strokeStyle = '#ffffff66';
+            circuitCtx.stroke();
+
+            drawANDGate(circuitCtx, x, y, gateWidth, gateHeight);
+
+            // Literais do produto (ex.: "¬AB" vira ["¬A","B"])
+            const literals = [];
+            let i = 0;
+            while (i < product.length) {
+                if (product[i] === '¬') {
+                    literals.push(product.slice(i, i + 2));
+                    i += 2;
+                } else {
+                    literals.push(product[i]);
+                    i++;
+                }
+            }
+
+            const numInputs = literals.length;
+            const inputSpacing = gateHeight / (numInputs + 1);
+            literals.forEach((lit, j) => {
+                const isNegated = lit.startsWith('¬');
+                const varName = isNegated ? lit[1] : lit;
+                const varIndex = usedVars.indexOf(varName);
+                if (varIndex === -1) return;
+
+                const varLineY = 40 + varIndex * 35;
+                const portY = y + inputSpacing * (j + 1);
+                const midX = x - 20 - j * 10;
+
+                // Desenha fio da variável até a porta AND (com possível NOT)
+                circuitCtx.beginPath();
+                circuitCtx.moveTo(marginLeft, varLineY);
+                circuitCtx.lineTo(midX, varLineY);
+                circuitCtx.lineTo(midX, portY);
+                circuitCtx.lineTo(x, portY);
+                circuitCtx.strokeStyle = '#ffffff66';
+                circuitCtx.stroke();
+
+                // Desenha a porta NOT se necessário
+                if (isNegated) {
+                    drawNOTGate(circuitCtx, x - invSize, portY - invSize / 2, invSize);
+                }
+
+                // Escreve o literal próximo à entrada da porta AND
+                circuitCtx.font = 'bold 12px Orbitron';
+                circuitCtx.textAlign = 'right';
+                circuitCtx.fillStyle = '#00f0ff';
+                const labelX = x - (isNegated ? 24 : 8);
+                const labelY = portY + 4;
+                if (isNegated) {
+                    // Desenha uma barra sobre a letra
+                    const textWidth = circuitCtx.measureText(varName).width;
+                    circuitCtx.fillText(varName, labelX, labelY);
+                    // Barra sobre a letra
+                    circuitCtx.beginPath();
+                    circuitCtx.moveTo(labelX - textWidth / 2 - 2, labelY - 14);
+                    circuitCtx.lineTo(labelX - textWidth / 2 + textWidth + 2, labelY - 14);
+                    circuitCtx.strokeStyle = '#ff4081';
+                    circuitCtx.lineWidth = 2;
+                    circuitCtx.stroke();
+                } else {
+                    circuitCtx.fillText(varName, labelX, labelY);
+                }
+            });
+        });
+
+        // Desenha porta OR
+        drawORGate(circuitCtx, orX, orY, orWidth, orHeight);
+        // Linha de saída
+        circuitCtx.beginPath();
+        circuitCtx.moveTo(orX + orWidth, orCenterY);
+        circuitCtx.lineTo(outputLineEndX, orCenterY);
+        circuitCtx.strokeStyle = '#00e676';
+        circuitCtx.lineWidth = 2;
+        circuitCtx.stroke();
+        circuitCtx.fillStyle = '#00e676';
+        circuitCtx.font = 'bold 16px Orbitron';
+        circuitCtx.textAlign = 'left';
+        circuitCtx.fillText('F', outputLineEndX + 5, orCenterY + 5);
+
+        // Aplica modo daltônico ou escala de cinza (opcional)
+        if (document.getElementById('daltonicToggle').checked || document.getElementById('grayScaleToggle').checked) {
+            // Simplesmente mantemos as cores, mas poderia ser adaptado.
+        }
+    }
+
+    function drawANDGate(ctx, x, y, w, h) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y + h);
+        ctx.lineTo(x + w * 0.6, y + h);
+        ctx.quadraticCurveTo(x + w, y + h, x + w, y + h / 2);
+        ctx.quadraticCurveTo(x + w, y, x + w * 0.6, y);
+        ctx.closePath();
+        ctx.fillStyle = '#1a1a4a';
+        ctx.fill();
+        ctx.strokeStyle = '#c084fc';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+    function drawORGate(ctx, x, y, w, h) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.quadraticCurveTo(x + w * 0.3, y, x + w * 0.7, y + h * 0.1);
+        ctx.quadraticCurveTo(x + w, y + h * 0.3, x + w, y + h / 2);
+        ctx.quadraticCurveTo(x + w, y + h * 0.7, x + w * 0.7, y + h * 0.9);
+        ctx.quadraticCurveTo(x + w * 0.3, y + h, x, y + h);
+        ctx.quadraticCurveTo(x + w * 0.2, y + h / 2, x, y);
+        ctx.closePath();
+        ctx.fillStyle = '#1a1a4a';
+        ctx.fill();
+        ctx.strokeStyle = '#00e676';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+    function drawNOTGate(ctx, cx, cy, size) {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + size, cy + size / 2);
+        ctx.lineTo(cx, cy + size);
+        ctx.closePath();
+        ctx.fillStyle = '#1a1a4a';
+        ctx.fill();
+        ctx.strokeStyle = '#ff4081';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Círculo de negação
+        ctx.beginPath();
+        ctx.arc(cx + size + 3, cy + size / 2, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#1a1a4a';
+        ctx.fill();
+        ctx.strokeStyle = '#ff4081';
+        ctx.stroke();
+    }
+
+    // ==================== MÉTRICAS (corrigidas) ====================
+    function updateMetrics() {
+        const total = 1 << numVars;
+        let sumProb = 0, sumDev = 0, defined = 0;
+        for (let i = 0; i < total; i++) {
+            if (probMode) {
+                const v = cellValues[i];
+                if (v !== null) {
+                    sumProb += v / 100;
+                    sumDev += Math.abs(v / 100 - (v > 50 ? 1 : 0));
+                    defined++;
+                }
+            } else {
+                const s = cellStates[i];
+                if (s === '1') { sumProb += 1; defined++; }
+                else if (s === '0') { defined++; }
+            }
+        }
+        const probUniform = defined > 0 ? (sumProb / defined * 100) : 0;
+        const avgDev = defined > 0 ? (sumDev / defined * 100) : 0;
+        $uniformProb.textContent = probUniform.toFixed(1) + '%';
+        $avgError.textContent = avgDev.toFixed(1) + '%';
+    }
+    // ==================== CONTROLES ====================
+    function updateControlsGrid() {
+        const total = 1 << numVars;
+        const grayOrder = GRAY_ORDER[numVars] || GRAY_ORDER[4];
+        let html = '';
+        for (let i = 0; i < total; i++) {
+            const idx = grayOrder[i], state = cellStates[idx], val = cellValues[idx];
+            html += `<div class="cell-control"><div class="minterm-label">m${idx}</div><div class="radio-group">
+                <label><input type="radio" name="state${idx}" value="1" ${state==='1'?'checked':''} onchange="setCellState(${idx},'1')">1</label>
+                <label><input type="radio" name="state${idx}" value="0" ${state==='0'?'checked':''} onchange="setCellState(${idx},'0')">0</label>
+                <label><input type="radio" name="state${idx}" value="x" ${state==='x'?'checked':''} onchange="setCellState(${idx},'x')">X</label></div>`;
+            if (probMode) html += `<input type="range" class="prob-slider" min="0" max="100" value="${val!==null?val:0}" ${val===null?'disabled':''} oninput="setCellProb(${idx}, this.value)"><div class="prob-value">${val!==null?val+'%':'--'}</div>`;
+            html += `</div>`;
+        }
+        $controlsGrid.innerHTML = html;
+        $controlsGrid.className = `controls-grid cols-${numVars===6?8:numVars<=3?2:4}`;
+    }
+    window.setCellState = function(idx, state) {
+        cellStates[idx] = state;
+        if (probMode) {
+            if (state === '1') cellValues[idx] = 100;
+            else if (state === '0') cellValues[idx] = 0;
+            else cellValues[idx] = null;
+        }
+        updateAll();
+    };
+    window.setCellProb = function(idx, value) {
+        const v = parseInt(value);
+        cellValues[idx] = v;
+        cellStates[idx] = v > 50 ? '1' : v < 50 ? '0' : 'x';
+        updateAll();
+    };
+
+    function updateTruthTable() {
+        const total = 1 << numVars;
+        let h = '';
+        for (let v = 0; v < numVars; v++) h += `<th>${String.fromCharCode(65+v)}</th>`;
+        h += '<th>' + (probMode ? 'Prob (%)' : 'Saída') + '</th>';
+        document.getElementById('truthHeaderRow').innerHTML = h;
+        let b = '';
+        for (let i = 0; i < total; i++) {
+            const bin = i.toString(2).padStart(numVars, '0');
+            b += '<tr>';
+            for (let j = 0; j < numVars; j++) b += `<td>${bin[j]}</td>`;
+            if (probMode) {
+                b += `<td><input type="number" min="0" max="100" value="${cellValues[i]!==null?cellValues[i]:''}" placeholder="X" onchange="updateCellFromTable(${i}, this.value)"></td>`;
+            } else {
+                b += `<td><select onchange="setCellState(${i}, this.value)">
+                    <option value="1" ${cellStates[i]==='1'?'selected':''}>1</option>
+                    <option value="0" ${cellStates[i]==='0'?'selected':''}>0</option>
+                    <option value="x" ${cellStates[i]==='x'?'selected':''}>X</option></select></td>`;
+            }
+            b += '</tr>';
+        }
+        document.getElementById('truthBody').innerHTML = b;
+    }
+    window.updateCellFromTable = function(idx, value) {
+        if (value.trim() === '' || isNaN(value)) {
+            cellValues[idx] = null; cellStates[idx] = 'x';
+        } else {
+            const v = Math.min(100, Math.max(0, parseInt(value)));
+            cellValues[idx] = v;
+            cellStates[idx] = v > 50 ? '1' : v < 50 ? '0' : 'x';
+        }
+        updateAll();
+    };
+
+    function parseExpression(expr) {
+        const total = 1 << numVars;
+        expr = expr.replace(/\s/g, '').replace(/AND|&&|·/gi, '&').replace(/OR|\|\||\+/gi, '|').replace(/NOT|~|!|¬/gi, '~').replace(/XOR|\^/gi, '^');
+        try {
+            const vars = [];
+            for (let v = 0; v < numVars; v++) vars.push(String.fromCharCode(65 + v));
+            const evalExpr = expr.replace(/[A-F]/gi, m => {
+                const idx = m.toUpperCase().charCodeAt(0) - 65;
+                if (idx >= numVars) throw new Error(`Variável ${m} fora do range`);
+                return `vars[${idx}]`;
+            });
+            const func = new Function('vars', `return (${evalExpr}) ? 1 : 0;`);
+            for (let i = 0; i < total; i++) {
+                const bits = i.toString(2).padStart(numVars, '0').split('').map(Number);
+                const res = func(bits);
+                cellStates[i] = res ? '1' : '0';
+                if (probMode) cellValues[i] = res ? 100 : 0;
+            }
+            return true;
+        } catch (e) {
+            document.getElementById('exprError').textContent = 'Erro: ' + e.message;
+            return false;
+        }
+    }
+
+    document.getElementById('applyExprBtn').addEventListener('click', () => {
+        if (parseExpression(document.getElementById('exprInput').value)) {
+            updateAll();
+            document.getElementById('exprError').textContent = '';
+        }
+    });
+    document.getElementById('applyListBtn').addEventListener('click', () => {
+        const total = 1 << numVars;
+        for (let i = 0; i < total; i++) { cellValues[i] = null; cellStates[i] = 'x'; }
+        const parse = s => s.split(/[,\s]+/).filter(x => x !== '').map(Number);
+        parse(document.getElementById('mintermsInput').value).forEach(i => { if (i < total) { cellStates[i] = '1'; if (probMode) cellValues[i] = 100; } });
+        parse(document.getElementById('maxtermsInput').value).forEach(i => { if (i < total) { cellStates[i] = '0'; if (probMode) cellValues[i] = 0; } });
+        parse(document.getElementById('dontcareInput').value).forEach(i => { if (i < total) { cellStates[i] = 'x'; if (probMode) cellValues[i] = null; } });
+        updateAll();
+    });
+    document.getElementById('defaultProbSlider').addEventListener('input', function() {
+        document.getElementById('defaultProbValue').textContent = this.value + '%';
+    });
+
+    function handleFileUpload(file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                if (file.name.endsWith('.json')) {
+                    const data = JSON.parse(e.target.result);
+                    if (data.vars) numVars = data.vars;
+                    if (data.cells) for (let i = 0; i < (1 << numVars); i++) if (data.cells[i] !== undefined) {
+                        cellValues[i] = data.cells[i];
+                        cellStates[i] = data.cells[i] > 50 ? '1' : data.cells[i] < 50 ? '0' : 'x';
+                    }
+                } else if (file.name.endsWith('.csv')) {
+                    const lines = e.target.result.split('\n');
+                    // Ignora primeira linha se parecer cabeçalho
+                    const startIdx = lines[0] && isNaN(parseFloat(lines[0].split(',')[0])) ? 1 : 0;
+                    for (let l = startIdx; l < lines.length; l++) {
+                        const p = lines[l].split(',');
+                        if (p.length >= 2) {
+                            const idx = parseInt(p[0]), prob = parseFloat(p[1]);
+                            if (!isNaN(idx) && !isNaN(prob)) {
+                                cellValues[idx] = prob;
+                                cellStates[idx] = prob > 50 ? '1' : prob < 50 ? '0' : 'x';
+                            }
+                        }
+                    }
+                }
+                $varsSelect.value = numVars;
+                updateAll();
+                document.getElementById('fileStatus').textContent = 'Arquivo carregado.';
+            } catch (err) {
+                document.getElementById('fileStatus').textContent = 'Erro ao carregar.';
+            }
+        };
+        reader.readAsText(file);
+    }
+    document.getElementById('uploadJsonBtn').addEventListener('click', () => { document.getElementById('fileInput').accept = '.json'; document.getElementById('fileInput').click(); });
+    document.getElementById('uploadCsvBtn').addEventListener('click', () => { document.getElementById('fileInput').accept = '.csv'; document.getElementById('fileInput').click(); });
+    document.getElementById('fileInput').addEventListener('change', e => { if (e.target.files[0]) handleFileUpload(e.target.files[0]); });
+
+    document.getElementById('loadExampleBtn').addEventListener('click', () => {
+        const total = 1 << numVars;
+        for (let i = 0; i < total; i++) {
+            const bin = i.toString(2).padStart(numVars, '0');
+            const ones = bin.split('').filter(c => c === '1').length;
+            const val = ones % 2 === 0 ? 100 : 0;
+            cellValues[i] = val;
+            cellStates[i] = val > 50 ? '1' : '0';
+        }
+        updateAll();
+    });
+    document.getElementById('clearBtn').addEventListener('click', () => { initCells(); updateAll(); });
+    document.getElementById('randomBtn').addEventListener('click', () => {
+        const total = 1 << numVars;
+        for (let i = 0; i < total; i++) {
+            const rand = Math.floor(Math.random() * 101);
+            cellValues[i] = rand;
+            cellStates[i] = rand > 50 ? '1' : rand < 50 ? '0' : 'x';
+        }
+        updateAll();
+    });
+    $varsSelect.addEventListener('change', () => {
+        const newVars = parseInt($varsSelect.value);
+        if (newVars !== numVars) {
+            const hasData = Object.values(cellValues).some(v => v !== null);
+            if (hasData && !confirm('Mudar o número de variáveis apagará todos os dados. Continuar?')) {
+                $varsSelect.value = numVars; // reverte seleção
+                return;
+            }
+        }
+        numVars = newVars;
+        initCells();
+        updateAll();
+    });
+    $probModeToggle.addEventListener('change', () => {
+        probMode = $probModeToggle.checked;
+        if (!probMode) {
+            for (let i = 0; i < (1 << numVars); i++) {
+                const v = cellValues[i];
+                cellStates[i] = v === null ? 'x' : v > 50 ? '1' : v < 50 ? '0' : 'x';
+            }
+        } else {
+            for (let i = 0; i < (1 << numVars); i++) {
+                const s = cellStates[i];
+                cellValues[i] = s === '1' ? 100 : s === '0' ? 0 : null;
+            }
+        }
+        updateAll();
+    });
+    ['daltonicToggle', 'grayScaleToggle'].forEach(id => document.getElementById(id).addEventListener('change', renderKMap));
+
+    // ==================== DOWNLOADS ====================
+    function downloadText(filename, text) { const b = new Blob([text], { type: 'text/plain' }); const a = document.createElement('a'); a.download = filename; a.href = URL.createObjectURL(b); a.click(); URL.revokeObjectURL(a.href); }
+    function downloadPng(filename, canvas) { const a = document.createElement('a'); a.download = filename; a.href = canvas.toDataURL('image/png'); a.click(); }
+
+    document.getElementById('exportPngBtn').addEventListener('click', () => downloadPng('karnaugh-map.png', $kmapCanvas));
+    document.getElementById('exportJsonBtn').addEventListener('click', () => {
+        const c = {};
+        for (let i = 0; i < (1 << numVars); i++) c[i] = cellValues[i];
+        downloadText('karnaugh-config.json', JSON.stringify({ vars: numVars, cells: c, mode: probMode ? 'prob' : 'det' }));
+    });
+    document.getElementById('exportSopBtn').addEventListener('click', () => downloadText('sop.txt', $exprBoxSOP.textContent));
+    document.getElementById('exportPosBtn').addEventListener('click', () => downloadText('pos.txt', $exprBoxPOS.textContent));
+    document.getElementById('exportProbBtn').addEventListener('click', () => {
+        let csv = 'Minterm,' + (probMode ? 'Prob (%)' : 'Saída') + '\n';
+        for (let i = 0; i < (1 << numVars); i++) csv += `${i},${probMode ? (cellValues[i] !== null ? cellValues[i] : 'X') : cellStates[i]}\n`;
+        downloadText('tabela.csv', csv);
+    });
+    document.getElementById('exportCircuitBtn').addEventListener('click', () => downloadPng('circuito.png', $circuitCanvas));
+    document.getElementById('exportMonteCarloBtn').addEventListener('click', () => {
+        const histCanvas = document.getElementById('histChart');
+        if (histCanvas) downloadPng('montecarlo_histograma.png', histCanvas);
+        downloadText('montecarlo_resumo.txt', `Simulação de Monte Carlo\n${document.getElementById('simResult').innerText}`);
+    });
+    document.getElementById('shareLinkBtn').addEventListener('click', () => {
+        const c = {};
+        for (let i = 0; i < (1 << numVars); i++) c[i] = cellValues[i];
+        const encoded = btoa(JSON.stringify({ v: numVars, c: c, m: probMode ? 'p' : 'd' }));
+        const url = `${location.origin}${location.pathname}?state=${encoded}`;
+        navigator.clipboard.writeText(url).then(() => alert('Link copiado!')).catch(() => prompt('Copie:', url));
+    });
+
+    // ==================== RELATÓRIO COMPLETO PDF ====================
+    document.getElementById('exportPdfBtn').addEventListener('click', generateFullReport);
+    document.getElementById('exportFullReportBtn').addEventListener('click', generateFullReport);
+
+    async function generateFullReport() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 10;
+        let yPos = margin;
+
+        // Título
+        doc.setFontSize(18); doc.setTextColor(0, 240, 255);
+        doc.text('Relatório KarnoProb v2.4', margin, yPos);
+        yPos += 10;
+        doc.setFontSize(10); doc.setTextColor(0);
+        doc.text(`Gerado em: ${new Date().toLocaleString()}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Modo: ${probMode ? 'Probabilístico' : 'Determinístico'} | Variáveis: ${numVars}`, margin, yPos);
+        yPos += 10;
+
+        // Expressões
+        doc.setFontSize(12); doc.setTextColor(192, 132, 252);
+        doc.text('Expressões Lógicas Mínimas', margin, yPos);
+        yPos += 6;
+        doc.setFontSize(10); doc.setTextColor(0);
+        doc.text(`SOP: ${simplify('SOP')}`, margin, yPos);
+        yPos += 5;
+        doc.text(`POS: ${simplify('POS')}`, margin, yPos);
+        yPos += 8;
+
+        // Mapa de Karnaugh
+        doc.setFontSize(12); doc.setTextColor(192, 132, 252);
+        doc.text('Mapa de Karnaugh', margin, yPos);
+        yPos += 6;
+        const mapImg = $kmapCanvas.toDataURL('image/png');
+        const mapWidth = 120, mapHeight = ($kmapCanvas.height * mapWidth) / $kmapCanvas.width;
+        if (yPos + mapHeight > pageHeight - margin) { doc.addPage(); yPos = margin; }
+        doc.addImage(mapImg, 'PNG', margin, yPos, mapWidth, mapHeight);
+        yPos += mapHeight + 5;
+
+        // Diagrama do circuito
+        doc.setFontSize(12); doc.setTextColor(192, 132, 252);
+        doc.text('Diagrama do Circuito Lógico (SOP)', margin, yPos);
+        yPos += 6;
+        const circuitImg = $circuitCanvas.toDataURL('image/png');
+        const cktWidth = 120, cktHeight = ($circuitCanvas.height * cktWidth) / $circuitCanvas.width;
+        if (yPos + cktHeight > pageHeight - margin) { doc.addPage(); yPos = margin; }
+        doc.addImage(circuitImg, 'PNG', margin, yPos, cktWidth, cktHeight);
+        yPos += cktHeight + 5;
+
+        // Métricas de confiabilidade
+        doc.setFontSize(12); doc.setTextColor(192, 132, 252);
+        doc.text('Análise de Confiabilidade', margin, yPos);
+        yPos += 6;
+        doc.setFontSize(10); doc.setTextColor(0);
+        doc.text(`Probabilidade de saída 1 (entrada uniforme): ${$uniformProb.textContent}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Erro médio (desvio do projeto): ${$avgError.textContent}`, margin, yPos);
+        yPos += 8;
+
+        // Simulação de Monte Carlo (se disponível)
+        if (simChartHist && simChartPie) {
+            doc.setFontSize(12); doc.setTextColor(192, 132, 252);
+            doc.text('Simulação de Monte Carlo', margin, yPos);
+            yPos += 6;
+            doc.setFontSize(10); doc.setTextColor(0);
+            doc.text(`Número de simulações: ${$nSimValue.textContent}`, margin, yPos);
+            yPos += 5;
+            doc.text(`Resultado: ${document.getElementById('simResult').innerText}`, margin, yPos);
+            yPos += 5;
+            const chartWidth = 80, chartHeight = 60;
+            if (yPos + chartHeight > pageHeight - margin) { doc.addPage(); yPos = margin; }
+            const histImg = simChartHist.toBase64Image();
+            const pieImg = simChartPie.toBase64Image();
+            doc.addImage(histImg, 'PNG', margin, yPos, chartWidth, chartHeight);
+            doc.addImage(pieImg, 'PNG', margin + chartWidth + 5, yPos, chartWidth, chartHeight);
+            yPos += chartHeight + 5;
+        } else {
+            doc.setFontSize(10); doc.setTextColor(100);
+            doc.text('Simulação de Monte Carlo não executada nesta sessão.', margin, yPos);
+            yPos += 6;
+        }
+
+        // Rodapé
+        doc.setFontSize(8); doc.setTextColor(150);
+        doc.text('KarnoProb v2.4 - Ferramenta profissional de análise de circuitos lógicos', margin, pageHeight - 10);
+
+        doc.save('relatorio-karnoprob.pdf');
+    }
+  // ==================== SIMULAÇÃO DE MONTE CARLO (corrigida) ====================
+    function runSimulation(nSim) {
+        const total = 1 << numVars;
+        const probs = new Array(total);
+        for (let i = 0; i < total; i++) {
+            if (probMode) {
+                probs[i] = cellValues[i] !== null ? cellValues[i] / 100 : null;
+            } else {
+                probs[i] = cellStates[i] === '1' ? 1 : cellStates[i] === '0' ? 0 : null;
+            }
+        }
+        // Apenas índices com probabilidade definida
+        const validIndices = [];
+        for (let i = 0; i < total; i++) if (probs[i] !== null) validIndices.push(i);
+        if (validIndices.length === 0) {
+            document.getElementById('simResult').innerText = 'Nenhuma célula definida para simulação.';
+            return;
+        }
+        let count1 = 0;
+        const samples = [];
+        for (let s = 0; s < nSim; s++) {
+            const idx = validIndices[Math.floor(Math.random() * validIndices.length)];
+            const p = probs[idx];
+            const outcome = Math.random() < p ? 1 : 0;
+            if (outcome === 1) count1++;
+            samples.push(outcome);
+        }
+        const prob1 = (count1 / nSim * 100).toFixed(2);
+        document.getElementById('simResult').innerHTML = `Probabilidade de saída 1: ${prob1}% (${nSim} simulações)`;
+        const ctxHist = document.getElementById('histChart').getContext('2d');
+        const ctxPie = document.getElementById('pieChart').getContext('2d');
+        if (simChartHist) simChartHist.destroy();
+        if (simChartPie) simChartPie.destroy();
+        simChartHist = new Chart(ctxHist, {
+            type: 'bar',
+            data: {
+                labels: ['0', '1'],
+                datasets: [{
+                    label: 'Contagem',
+                    data: [samples.filter(x => x === 0).length, count1],
+                    backgroundColor: ['#ff4081', '#00e676']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+        simChartPie = new Chart(ctxPie, {
+            type: 'pie',
+            data: {
+                labels: ['0', '1'],
+                datasets: [{
+                    data: [samples.filter(x => x === 0).length, count1],
+                    backgroundColor: ['#ff4081', '#00e676']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    document.getElementById('runSimBtn').addEventListener('click', () => runSimulation(parseInt($nSimSlider.value)));
+    $nSimSlider.addEventListener('input', () => { $nSimValue.textContent = $nSimSlider.value; });
+
+    // ==================== MODAL AJUDA ====================
+    const helpModal = document.getElementById('helpModal');
+    document.getElementById('helpBtn').addEventListener('click', () => helpModal.classList.add('active'));
+    document.getElementById('closeHelpBtn').addEventListener('click', () => helpModal.classList.remove('active'));
+    helpModal.addEventListener('click', (e) => { if (e.target === helpModal) helpModal.classList.remove('active'); });
+
+    // ==================== TABS ====================
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+    }));
+
+    // ==================== CARREGAR URL ====================
+    function loadFromUrl() {
+        const params = new URLSearchParams(location.search);
+        const state = params.get('state');
+        if (state) {
+            try {
+                const data = JSON.parse(atob(state));
+                if (data.v) numVars = data.v;
+                if (data.c) for (let k in data.c) {
+                    const idx = parseInt(k);
+                    cellValues[idx] = data.c[k];
+                    cellStates[idx] = data.c[k] > 50 ? '1' : data.c[k] < 50 ? '0' : 'x';
+                }
+                if (data.m) {
+                    probMode = data.m === 'p';
+                    $probModeToggle.checked = probMode;
+                }
+                $varsSelect.value = numVars;
+                updateAll();
+            } catch (e) {}
+        }
+    }
+    loadFromUrl();
+    updateAll();
+})();
+</script>
+</body>
+</html>
